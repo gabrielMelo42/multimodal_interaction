@@ -1,7 +1,7 @@
 import sys
 import cv2
 import mediapipe as mp
-from PyQt5.QtCore import Qt, QTimer
+from PyQt5.QtCore import Qt, QTimer, QPoint
 from PyQt5.QtGui import QFont, QImage, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox
 
@@ -35,7 +35,7 @@ class DrawingCanvas(QWidget):
         super().__init__(parent)
         self.setMinimumSize(400, 400)
         self.points = []
-    
+
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), Qt.white)  # Imposta lo sfondo bianco
@@ -45,9 +45,10 @@ class DrawingCanvas(QWidget):
         painter.setPen(pen)
         for i in range(1, len(self.points)):
             painter.drawLine(self.points[i - 1], self.points[i])
-    
-    def mousePressEvent(self, event):
-        self.points.append(event.pos())
+
+    def add_point(self, point):
+        # Aggiungi il punto alla lista dei punti
+        self.points.append(point)
         self.update()
 
 class MainWindow(QMainWindow):
@@ -136,13 +137,26 @@ class MainWindow(QMainWindow):
                 
                 # Process the frame with MediaPipe Hands
                 result = self.hands.process(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB))
-
-                print(result.multi_hand_landmarks)
                 
                 # Draw landmarks on the frame if hands are detected
                 if result.multi_hand_landmarks:
                     for hand_landmark in result.multi_hand_landmarks:
-                        self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS)
+                        # Draw all landmarks in blue color
+                        self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=4))
+                        
+                        # Change the color of the index fingertip (landmark ID 8) to blue
+                        index_fingertip = hand_landmark.landmark[8]
+                        cx, cy = int(index_fingertip.x * frame.shape[1]), int(index_fingertip.y * frame.shape[0])
+                        cv2.circle(frame, (cx, cy), 6, (255, 0, 0), -1)  # Draw a blue circle for the index fingertip
+
+                        # Converte le coordinate per essere sulla destra dell'applicazione
+                        canvas_height = self.drawing_canvas.height()
+                        canvas_width = self.drawing_canvas.width()
+                        cx_canvas = int(cx * canvas_width / frame.shape[1])
+                        cy_canvas = int(cy * canvas_height / frame.shape[0])
+                        
+                        # Aggiunge il punto alla tela di disegno
+                        self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
                 
                 # Convert the frame to QImage format
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
