@@ -1,6 +1,7 @@
 import sys
 import cv2
 import mediapipe as mp
+import math
 from PyQt5.QtCore import Qt, QTimer, QPoint
 from PyQt5.QtGui import QFont, QImage, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox
@@ -38,7 +39,7 @@ class DrawingCanvas(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.fillRect(self.rect(), Qt.white)  # Imposta lo sfondo bianco
+        painter.fillRect(self.rect(), Qt.white)  # Set the white background
         pen = QPen()
         pen.setColor(Qt.blue)
         pen.setWidth(5)
@@ -47,7 +48,7 @@ class DrawingCanvas(QWidget):
             painter.drawLine(self.points[i - 1], self.points[i])
 
     def add_point(self, point):
-        # Aggiungi il punto alla lista dei punti
+        # Add the point to the list of points
         self.points.append(point)
         self.update()
 
@@ -79,6 +80,11 @@ class MainWindow(QMainWindow):
         # Drawing canvas
         self.drawing_canvas = DrawingCanvas()
         layout.addWidget(self.drawing_canvas, 0, 1, 1, 1)
+
+        self.max_writing_distance = 50  # Set the maximum distance value for writing
+
+        self.prev_thumb_tip = None
+        self.prev_index_tip = None
         
         # Button to exit the application
         self.exit_button = QPushButton("EXIT")
@@ -141,22 +147,30 @@ class MainWindow(QMainWindow):
                 # Draw landmarks on the frame if hands are detected
                 if result.multi_hand_landmarks:
                     for hand_landmark in result.multi_hand_landmarks:
-                        # Draw all landmarks in blue color
-                        self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(0, 255, 0), thickness=2, circle_radius=4))
+                        # Compute the distance between the tip of the thumb and index
+                        thumb_tip = hand_landmark.landmark[4]
+                        index_tip = hand_landmark.landmark[8]
+                        distance = math.sqrt((thumb_tip.x - index_tip.x) ** 2 + (thumb_tip.y - index_tip.y) ** 2) * frame.shape[1] / 2
                         
-                        # Change the color of the index fingertip (landmark ID 8) to blue
-                        index_fingertip = hand_landmark.landmark[8]
-                        cx, cy = int(index_fingertip.x * frame.shape[1]), int(index_fingertip.y * frame.shape[0])
-                        cv2.circle(frame, (cx, cy), 6, (255, 0, 0), -1)  # Draw a blue circle for the index fingertip
-
-                        # Converte le coordinate per essere sulla destra dell'applicazione
+                        # Draw detection with blue color if distance is greater than the maximum writing value
+                        if distance < self.max_writing_distance:
+                            self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(255, 0, 0), thickness=2, circle_radius=4))
+                        else:
+                           self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=4)) 
+                        
+                        # Compute the average position between the tip of the thumb and index
+                        cx = int((thumb_tip.x + index_tip.x) * frame.shape[1] / 2)
+                        cy = int((thumb_tip.y + index_tip.y) * frame.shape[0] / 2)
+                        
+                        # Convert coordinates to be on the right side of the application
                         canvas_height = self.drawing_canvas.height()
                         canvas_width = self.drawing_canvas.width()
                         cx_canvas = int(cx * canvas_width / frame.shape[1])
                         cy_canvas = int(cy * canvas_height / frame.shape[0])
                         
-                        # Aggiunge il punto alla tela di disegno
-                        self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
+                        # Add the point to the drawing canvas if the distance is less than the maximum writing value
+                        if distance < self.max_writing_distance:
+                            self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
                 
                 # Convert the frame to QImage format
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
