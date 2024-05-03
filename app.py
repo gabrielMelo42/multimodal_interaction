@@ -2,7 +2,7 @@ import sys
 import cv2
 import mediapipe as mp
 import math
-from PyQt5.QtCore import Qt, QTimer, QPoint
+from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QFont, QImage, QPixmap, QPainter, QPen, QColor
 from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox
 
@@ -32,10 +32,20 @@ class CameraSelectionDialog(QDialog):
         return self.camera_combobox.currentIndex()
 
 class DrawingCanvas(QWidget):
-    def __init__(self, parent=None):
+    def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
         self.setMinimumSize(400, 400)
         self.points = []
+        self.pointer_position = QPoint(0, 0)
+        
+        # Set the main window reference
+        self.main_window = main_window
+
+        # Connection
+        if self.main_window:
+            self.main_window.pointer_position_changed.connect(self.update_pointer_position)
+        else:
+            print("Error: MainWindow reference not provided.")
 
     def paintEvent(self, event):
         painter = QPainter(self)
@@ -47,12 +57,24 @@ class DrawingCanvas(QWidget):
         for i in range(1, len(self.points)):
             painter.drawLine(self.points[i - 1], self.points[i])
 
+        # Draw pointer
+        pointer_size = 2  # Dimensione del puntatore
+        painter.drawEllipse(self.pointer_position, pointer_size, pointer_size)
+
     def add_point(self, point):
         # Add the point to the list of points
         self.points.append(point)
         self.update()
 
+    def update_pointer_position(self, position):
+        print("Pointer position updated to:", position)
+        self.pointer_position = position
+        self.update()
+
 class MainWindow(QMainWindow):
+
+    pointer_position_changed = pyqtSignal(QPoint)
+
     def __init__(self):
         super().__init__()
         self.setWindowTitle("AIR WRITING")
@@ -78,7 +100,7 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.select_camera_button, 0, 0, 1, 1, Qt.AlignTop | Qt.AlignLeft)
         
         # Drawing canvas
-        self.drawing_canvas = DrawingCanvas()
+        self.drawing_canvas = DrawingCanvas(main_window=self)
         layout.addWidget(self.drawing_canvas, 0, 1, 1, 1)
 
         self.max_writing_distance = 50  # Set the maximum distance value for writing
@@ -101,6 +123,13 @@ class MainWindow(QMainWindow):
         widget = QWidget()
         widget.setLayout(layout)
         self.setCentralWidget(widget)
+
+        # Button to clear the drawing canvas
+        self.clear_button = QPushButton("Clear")
+        self.clear_button.setFont(font)
+        self.clear_button.setStyleSheet("QPushButton { text-transform: uppercase; }")
+        self.clear_button.clicked.connect(self.clear_canvas)
+        layout.addWidget(self.clear_button, 1, 1, 1, 1, Qt.AlignBottom | Qt.AlignRight)
         
         # Initialize video capture
         self.video_capture = None
@@ -114,7 +143,7 @@ class MainWindow(QMainWindow):
         # Starting the timer to update the video frame
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(30)  # Update every 30 milliseconds (approximately 30 fps)
+        self.timer.start(10)  # Update every 10 milliseconds
 
 
     
@@ -131,6 +160,10 @@ class MainWindow(QMainWindow):
             else:
                 print(f"Using camera {self.selected_camera_index}")
 
+    
+    def clear_canvas(self):
+        self.drawing_canvas.points = []
+        self.drawing_canvas.update()
 
     
     def update_frame(self):
@@ -156,7 +189,7 @@ class MainWindow(QMainWindow):
                         if distance < self.max_writing_distance:
                             self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(255, 0, 0), thickness=2, circle_radius=4))
                         else:
-                           self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=4)) 
+                            self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(0, 0, 255), thickness=2, circle_radius=4)) 
                         
                         # Compute the average position between the tip of the thumb and index
                         cx = int((thumb_tip.x + index_tip.x) * frame.shape[1] / 2)
@@ -167,11 +200,16 @@ class MainWindow(QMainWindow):
                         canvas_width = self.drawing_canvas.width()
                         cx_canvas = int(cx * canvas_width / frame.shape[1])
                         cy_canvas = int(cy * canvas_height / frame.shape[0])
+
+                        # Aggiorna il puntatore con la posizione media
+                        self.pointer_position_changed.emit(QPoint(cx_canvas, cy_canvas))
                         
                         # Add the point to the drawing canvas if the distance is less than the maximum writing value
                         if distance < self.max_writing_distance:
                             self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
-                
+                        else:
+                            self.drawing_canvas
+
                 # Convert the frame to QImage format
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
                 h, w, ch = rgb_image.shape
@@ -188,6 +226,7 @@ class MainWindow(QMainWindow):
             else:
                 # If reading the frame fails, show an error message
                 self.video_label.setText("Error reading frame from webcam")
+
 
 
 
