@@ -35,7 +35,8 @@ class DrawingCanvas(QWidget):
     def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
         self.setMinimumSize(400, 400)
-        self.points = []
+        self.trails = []  # Lista di tratti, ognuno rappresentato da una lista di punti
+        self.current_trail = []  # Tratto corrente, iniziato ma non ancora completato
         self.pointer_position = QPoint(0, 0)
         
         # Set the main window reference
@@ -54,20 +55,33 @@ class DrawingCanvas(QWidget):
         pen.setColor(Qt.blue)
         pen.setWidth(5)
         painter.setPen(pen)
-        for i in range(1, len(self.points)):
-            painter.drawLine(self.points[i - 1], self.points[i])
+        for trail in self.trails:
+            for i in range(1, len(trail)):
+                painter.drawLine(trail[i - 1], trail[i])
+
+        # Disegna anche il tratto corrente
+        for i in range(1, len(self.current_trail)):
+            painter.drawLine(self.current_trail[i - 1], self.current_trail[i])
 
         # Draw pointer
         pointer_size = 2  # Dimensione del puntatore
         painter.drawEllipse(self.pointer_position, pointer_size, pointer_size)
 
+
     def add_point(self, point):
-        # Add the point to the list of points
-        self.points.append(point)
+        # Aggiungi il punto al tratto corrente
+        self.current_trail.append(point)
+        self.update()
+
+    def start_new_line(self, point):
+        # Aggiungi il tratto corrente alla lista di tratti
+        if self.current_trail:
+            self.trails.append(self.current_trail)
+        # Crea un nuovo tratto con il punto fornito
+        self.current_trail = [point]
         self.update()
 
     def update_pointer_position(self, position):
-        print("Pointer position updated to:", position)
         self.pointer_position = position
         self.update()
 
@@ -103,7 +117,8 @@ class MainWindow(QMainWindow):
         self.drawing_canvas = DrawingCanvas(main_window=self)
         layout.addWidget(self.drawing_canvas, 0, 1, 1, 1)
 
-        self.max_writing_distance = 50  # Set the maximum distance value for writing
+        self.max_writing_distance = 30  # Set the maximum distance value for writing
+        self.new_line = False
 
         self.prev_thumb_tip = None
         self.prev_index_tip = None
@@ -162,10 +177,11 @@ class MainWindow(QMainWindow):
 
     
     def clear_canvas(self):
-        self.drawing_canvas.points = []
-        self.drawing_canvas.update()
+        self.drawing_canvas.trails = []  # Svuota la lista dei tratti
+        self.drawing_canvas.current_trail = []  # Svuota anche il tratto corrente
+        self.drawing_canvas.update()  # Aggiorna la visualizzazione
 
-    
+
     def update_frame(self):
         if self.video_capture is not None:
             # Read a frame from the webcam
@@ -204,11 +220,15 @@ class MainWindow(QMainWindow):
                         # Aggiorna il puntatore con la posizione media
                         self.pointer_position_changed.emit(QPoint(cx_canvas, cy_canvas))
                         
-                        # Add the point to the drawing canvas if the distance is less than the maximum writing value
+                        # Aggiunge il punto al canvas di disegno se la distanza è inferiore al valore massimo di scrittura
                         if distance < self.max_writing_distance:
-                            self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
+                            if not self.new_line:
+                                self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas))
+                            else:
+                                self.drawing_canvas.start_new_line(QPoint(cx_canvas, cy_canvas))
+                                self.new_line = False  # Imposta il flag su False per continuare il tratto esistente
                         else:
-                            self.drawing_canvas
+                            self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
 
                 # Convert the frame to QImage format
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
