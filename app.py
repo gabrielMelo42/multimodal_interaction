@@ -168,7 +168,7 @@ class MainWindow(QMainWindow):
         self.drawing_canvas = DrawingCanvas(main_window=self)
         layout.addWidget(self.drawing_canvas, 0, 1, 1, 1)
 
-        self.max_writing_distance = 30  # Set the maximum distance value for writing
+        self.distance_costant = 70
         self.new_line = False
 
         self.punch_treshold = 20
@@ -375,9 +375,12 @@ class MainWindow(QMainWindow):
                         thumb_tip = hand_landmark.landmark[4]
                         index_tip = hand_landmark.landmark[8]
                         distance = math.sqrt((thumb_tip.x - index_tip.x) ** 2 + (thumb_tip.y - index_tip.y) ** 2) * frame.shape[1] / 2
+
+                        # Imposta la distanza massima di scrittura in base alla distanza della mano dallo schermo
+                        max_writing_distance = (hand_distance) * self.distance_costant
                         
                         # Draw detection with blue color if distance is greater than the maximum writing value
-                        if distance < self.max_writing_distance:
+                        if distance < max_writing_distance:
                             self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color= self.hands_color, thickness=int(stroke_thickness), circle_radius=4))
                         else:
                             self.mp_drawing_utils.draw_landmarks(frame, hand_landmark, self.mp_hands.HAND_CONNECTIONS, landmark_drawing_spec=self.mp_drawing_utils.DrawingSpec(color=(255, 255, 255), thickness=int(stroke_thickness), circle_radius=4)) 
@@ -394,7 +397,7 @@ class MainWindow(QMainWindow):
 
                         if cy_canvas > 120:
                             # Aggiungi il punto al canvas di disegno con lo spessore e colore calcolati
-                            if distance < self.max_writing_distance:
+                            if distance < max_writing_distance:
                                 if not self.new_line:
                                     self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
                                 else:
@@ -409,7 +412,7 @@ class MainWindow(QMainWindow):
                                 self.drawing_canvas.close_line()
                             self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
 
-                            if distance < self.max_writing_distance: 
+                            if distance < max_writing_distance: 
                                 if 20 < cx_canvas < 170:
                                     self.select_color(Qt.blue)
                                 elif 190 < cx_canvas < 340:
