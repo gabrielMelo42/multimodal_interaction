@@ -4,7 +4,7 @@ import mediapipe as mp
 import math
 from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QFont, QImage, QPixmap, QPainter, QPen, QColor, QBrush
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox, QFrame
 
 class CameraSelectionDialog(QDialog):
     def __init__(self, parent=None):
@@ -52,6 +52,7 @@ class DrawingCanvas(QWidget):
         # Set the main window reference
         self.main_window = main_window
 
+
         # Connection
         if self.main_window:
             self.main_window.pointer_position_changed.connect(self.update_pointer_position)
@@ -65,7 +66,7 @@ class DrawingCanvas(QWidget):
 
     def paintEvent(self, event):
         painter = QPainter(self)
-        painter.fillRect(self.rect(), Qt.white)  # Set the white background
+        painter.fillRect(self.rect(), QColor(210, 210, 210))  # Set the white background
         
         # Disegna i tratti con spessori variabili
         for trail in self.trails:
@@ -190,27 +191,17 @@ class MainWindow(QMainWindow):
 
         # Aggiungi i pulsanti
         self.buttonBLUE = QPushButton("BLUE")
-        self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 150); height: 80px;") 
+        self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 160); height: 80px;") 
         self.buttonBLUE.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
         self.buttonRED = QPushButton("RED")
-        self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 150); height: 80px;")
+        self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 160); height: 80px;")
         self.buttonRED.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
         self.buttonGREEN = QPushButton("GREEN")
-        self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 150); height: 80px;")
+        self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 160); height: 80px;")
         self.buttonGREEN.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
         self.buttonUNDO = QPushButton("UNDO")
-        self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(211, 211, 211, 150); height: 80px;")
+        self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 160); height: 80px;")
         self.buttonUNDO.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
-
-        # Aggiungi un widget vuoto per posizionare i pulsanti sopra il canvas
-        button_widget = QWidget()
-        button_layout = QHBoxLayout(button_widget)
-
-        # Aggiungi i pulsanti al layout orizzontale
-        button_layout.addWidget(self.buttonBLUE)
-        button_layout.addWidget(self.buttonRED)
-        button_layout.addWidget(self.buttonGREEN)
-        button_layout.addWidget(self.buttonUNDO)
 
         self.current_color = Qt.blue
 
@@ -221,10 +212,25 @@ class MainWindow(QMainWindow):
 
         self.buttonUNDO.clicked.connect(self.undo_last_stroke)
 
-        # Imposta la posizione del widget dei pulsanti sopra il canvas
-        layout.addWidget(button_widget, 0, 1, 1, 1, Qt.AlignTop)
+        self.undo_enabled = True  # Attributo di classe per memorizzare lo stato del pulsante "UNDO"
 
-        
+
+        # Crea un QFrame per contenere i pulsanti
+        button_frame = QFrame()
+        button_frame.setFrameShape(QFrame.Panel)
+        button_frame.setFrameShadow(QFrame.Raised)
+        button_frame.setStyleSheet("background-color: rgba(255, 255, 255, 100); border-radius: 10px; border: 2px solid rgba(0, 0, 0, 0.5);")
+
+        # Aggiungi un layout per i pulsanti all'interno del frame
+        button_layout = QHBoxLayout(button_frame)
+        button_layout.addWidget(self.buttonBLUE)
+        button_layout.addWidget(self.buttonRED)
+        button_layout.addWidget(self.buttonGREEN)
+        button_layout.addWidget(self.buttonUNDO)
+
+        # Aggiungi il frame al layout principale
+        layout.addWidget(button_frame, 0, 1, 1, 1, Qt.AlignTop)
+
         # Widget for the main layout
         widget = QWidget()
         widget.setLayout(layout)
@@ -275,19 +281,43 @@ class MainWindow(QMainWindow):
 
 
     def undo_last_stroke(self):
-        if self.drawing_canvas.trails:
-            self.drawing_canvas.trails.pop()  # Rimuove l'ultimo tratto dalla lista dei tratti
+        if self.undo_enabled:
+            if self.drawing_canvas.trails:
+                self.drawing_canvas.trails.pop()  # Rimuove l'ultimo tratto dalla lista dei tratti
+            # Imposta uno stile temporaneo per rendere il pulsante verde meno trasparente
+            self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 255); height: 80px;")
+            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            QTimer.singleShot(150, lambda: self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 160); height: 80px;"))            
             self.drawing_canvas.update()  # Aggiorna la visualizzazione per rimuovere il tratto cancellato
+            self.undo_enabled = False
+            # Disabilita temporaneamente il pulsante per 300ms
+            QTimer.singleShot(300, self.enable_undo_button)
+
+    
+    def enable_undo_button(self):
+        self.undo_enabled = True
 
 
     def select_color(self, color):
         self.current_color = color
         if color == (Qt.blue):
             self.hands_color = (255, 0, 0)
+            # Imposta uno stile temporaneo per rendere il pulsante blu meno trasparente
+            self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 255); height: 80px;")
+            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            QTimer.singleShot(150, lambda: self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 160); height: 80px;"))
         elif color == (Qt.red):
             self.hands_color = (0, 0, 255)
+            # Imposta uno stile temporaneo per rendere il pulsante rosso meno trasparente
+            self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 255); height: 80px;")
+            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            QTimer.singleShot(150, lambda: self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 160); height: 80px;"))
         elif color == (Qt.green):
             self.hands_color = (0, 255, 0)
+            # Imposta uno stile temporaneo per rendere il pulsante verde meno trasparente
+            self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 255); height: 80px;")
+            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            QTimer.singleShot(150, lambda: self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 160); height: 80px;"))
     
 
     def map_distance_to_thickness(self, distance):
@@ -362,18 +392,32 @@ class MainWindow(QMainWindow):
                         cx_canvas = int(cx * canvas_width / frame.shape[1])
                         cy_canvas = int(cy * canvas_height / frame.shape[0])
 
-
-                        # Aggiungi il punto al canvas di disegno con lo spessore e colore calcolati
-                        if distance < self.max_writing_distance:
-                            if not self.new_line:
-                                self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
+                        if cy_canvas > 120:
+                            # Aggiungi il punto al canvas di disegno con lo spessore e colore calcolati
+                            if distance < self.max_writing_distance:
+                                if not self.new_line:
+                                    self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
+                                else:
+                                    self.drawing_canvas.start_new_line(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
+                                    self.new_line = False  # Imposta il flag su False per continuare il tratto esistente
                             else:
-                                self.drawing_canvas.start_new_line(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
-                                self.new_line = False  # Imposta il flag su False per continuare il tratto esistente
-                        else:
+                                if not self.new_line:
+                                    self.drawing_canvas.close_line()
+                                self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
+                        elif cy_canvas < 100:
                             if not self.new_line:
                                 self.drawing_canvas.close_line()
                             self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
+
+                            if distance < self.max_writing_distance: 
+                                if 20 < cx_canvas < 170:
+                                    self.select_color(Qt.blue)
+                                elif 190 < cx_canvas < 340:
+                                    self.select_color(Qt.red)
+                                elif 360 < cx_canvas < 510:
+                                    self.select_color(Qt.green)
+                                elif 530 < cx_canvas < 680:
+                                    self.undo_last_stroke()
 
 
                         # Aggiorna il puntatore con la posizione media e colore
