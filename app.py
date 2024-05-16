@@ -4,7 +4,7 @@ import mediapipe as mp
 import math
 from PyQt5.QtCore import Qt, QTimer, QPoint, pyqtSignal
 from PyQt5.QtGui import QFont, QImage, QPixmap, QPainter, QPen, QColor, QBrush
-from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox, QFrame
+from PyQt5.QtWidgets import QApplication, QLabel, QMainWindow, QVBoxLayout, QHBoxLayout, QWidget, QSizePolicy, QPushButton, QGridLayout, QDialog, QComboBox, QFrame, QMessageBox
 
 class CameraSelectionDialog(QDialog):
     def __init__(self, parent=None):
@@ -43,15 +43,14 @@ class DrawingCanvas(QWidget):
     def __init__(self, parent=None, main_window=None):
         super().__init__(parent)
         self.setMinimumSize(400, 400)
-        self.trails = []  # Lista di tratti, ognuno rappresentato da una lista di punti
-        self.current_trail = []  # Tratto corrente, iniziato ma non ancora completato
+        self.trails = []  # List of trails, each represented by a list of points
+        self.current_trail = []  # Current trail, started but not yet completed
         self.pointer_position = QPoint(0, 0)
         self.pointer_color = Qt.blue
-        self.trail_thickness = 5  # Spessore iniziale del tratto
+        self.trail_thickness = 5  # Initial thickness of the trail
         
         # Set the main window reference
         self.main_window = main_window
-
 
         # Connection
         if self.main_window:
@@ -63,43 +62,41 @@ class DrawingCanvas(QWidget):
         # Ensure that the pointer widget stays on top
         self.setWindowFlags(Qt.WindowStaysOnTopHint)
 
-
     def paintEvent(self, event):
         painter = QPainter(self)
         painter.fillRect(self.rect(), QColor(210, 210, 210))  # Set the white background
         
-        # Disegna i tratti con spessori variabili
+        # Draw trails with variable thicknesses
         for trail in self.trails:
             for i in range(1, len(trail)):
-                pen = QPen(trail[i].color)  # Utilizza il colore del tratto corrente
-                pen.setWidth(int(trail[i].thickness))  # Imposta lo spessore del tratto
+                pen = QPen(trail[i].color)  # Use the color of the current trail
+                pen.setWidth(int(trail[i].thickness))  # Set the thickness of the trail
                 painter.setPen(pen)
-                # Estrai i punti e passali al metodo drawLine
+                # Extract points and pass them to the drawLine method
                 p1 = trail[i - 1].point
                 p2 = trail[i].point
                 painter.drawLine(p1, p2)
 
-        # Disegna il tratto corrente
+        # Draw the current trail
         for i in range(1, len(self.current_trail)):
-            pen = QPen(self.current_trail[i].color)  # Utilizza il colore del tratto corrente
-            pen.setWidth(int(self.current_trail[i].thickness))  # Imposta lo spessore del tratto
+            pen = QPen(self.current_trail[i].color)  # Use the color of the current trail
+            pen.setWidth(int(self.current_trail[i].thickness))  # Set the thickness of the trail
             painter.setPen(pen)
-            # Estrai i punti e passali al metodo drawLine
+            # Extract points and pass them to the drawLine method
             p1 = self.current_trail[i - 1].point
             p2 = self.current_trail[i].point
             painter.drawLine(p1, p2)
 
-        # Disegna il puntatore
-        pointer_size = math.sqrt(self.trail_thickness)  # Dimensione del puntatore
-        pen = QPen(self.pointer_color)  # Imposta il colore del contorno del puntatore
+        # Draw the pointer
+        pointer_size = math.sqrt(self.trail_thickness)  # Pointer size
+        pen = QPen(self.pointer_color)  # Set the outline color of the pointer
         if self.trail_thickness > 2:
             self.trail_thickness -= 2
-        pen.setWidth(self.trail_thickness)  # Imposta la larghezza del contorno
-        brush = QBrush(self.pointer_color)  # Imposta il colore di riempimento del puntatore
+        pen.setWidth(self.trail_thickness)  # Set the outline width
+        brush = QBrush(self.pointer_color)  # Set the fill color of the pointer
         painter.setPen(pen)
         painter.setBrush(brush)
         painter.drawEllipse(self.pointer_position, pointer_size, pointer_size)
-
 
     def draw_trail(self, painter, trail):
         for i in range(1, len(trail)):
@@ -109,19 +106,19 @@ class DrawingCanvas(QWidget):
             painter.drawLine(trail[i - 1].point, trail[i].point)
 
     def add_point(self, point, thickness, color):
-        # Aggiungi il punto al tratto corrente con lo spessore e colore specificati
+        # Add the point to the current trail with the specified thickness and color
         self.current_trail.append(PointWithThickness(point, thickness, color))
         self.update()
 
     def start_new_line(self, point, thickness, color):
-        # Crea un nuovo tratto con il punto fornito, lo spessore e il colore specificati
+        # Create a new trail with the provided point, thickness, and color
         self.current_trail = [PointWithThickness(point, thickness, color)]
         self.update()
 
     def close_line(self):
         if len(self.current_trail) >= 2:
             self.trails.append(self.current_trail)
-        self.current_trail = []  # Svuota il tratto corrente
+        self.current_trail = []  # Clear the current trail
 
     def update_pointer_position(self, position):
         self.pointer_position = position
@@ -129,10 +126,9 @@ class DrawingCanvas(QWidget):
 
     def update_pointer_color_and_thickness(self, color, thickness):
         self.pointer_color = color
-        self.trail_thickness = thickness  # Utilizza lo spessore del tratto come larghezza del contorno
+        self.trail_thickness = thickness  # Use the trail thickness as the outline width
         self.update()
 
-    
 
 class MainWindow(QMainWindow):
 
@@ -163,6 +159,12 @@ class MainWindow(QMainWindow):
         self.select_camera_button.clicked.connect(self.select_camera)
         layout.addWidget(self.select_camera_button, 0, 0, 1, 1, Qt.AlignTop | Qt.AlignLeft)
 
+        #Info button
+        self.info_button = QPushButton("Info")
+        self.info_button.setFont(font)
+        self.info_button.setStyleSheet("QPushButton { text-transform: uppercase; background-color: black; color: white; }")
+        self.info_button.clicked.connect(self.show_info)
+        layout.addWidget(self.info_button, 0, 0, 1, 1, Qt.AlignTop | Qt.AlignRight)
         
         # Drawing canvas
         self.drawing_canvas = DrawingCanvas(main_window=self)
@@ -173,10 +175,10 @@ class MainWindow(QMainWindow):
 
         self.punch_treshold = 20
 
-        self.max_hand_distance = 160  # Massima distanza della mano dalla fotocamera
-        self.min_hand_distance = 20  # Minima distanza della mano dalla fotocamera
-        self.max_stroke_thickness = 15  # Massimo spessore del tratto
-        self.min_stroke_thickness = 1  # Minimo spessore del tratto
+        self.max_hand_distance = 160  # Maximum distance of the hand from the camera
+        self.min_hand_distance = 20  # Minimum distance of the hand from the camera
+        self.max_stroke_thickness = 15  # Maximum stroke thickness
+        self.min_stroke_thickness = 1  # Minimum stroke thickness
         
         # Button to exit the application
         self.exit_button = QPushButton("EXIT")
@@ -189,46 +191,46 @@ class MainWindow(QMainWindow):
         layout.setColumnStretch(0, 1)
         layout.setColumnStretch(1, 1)
 
-        # Aggiungi i pulsanti
+        # Add buttons
         self.buttonBLUE = QPushButton("BLUE")
         self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 160); height: 80px;") 
-        self.buttonBLUE.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
+        self.buttonBLUE.setFont(QFont("Arial", 16, QFont.Bold))  
         self.buttonRED = QPushButton("RED")
         self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 160); height: 80px;")
-        self.buttonRED.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
+        self.buttonRED.setFont(QFont("Arial", 16, QFont.Bold))  
         self.buttonGREEN = QPushButton("GREEN")
         self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 160); height: 80px;")
-        self.buttonGREEN.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
+        self.buttonGREEN.setFont(QFont("Arial", 16, QFont.Bold))  
+
         self.buttonUNDO = QPushButton("UNDO")
         self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 160); height: 80px;")
-        self.buttonUNDO.setFont(QFont("Arial", 16, QFont.Bold))  # Imposta il font e il grassetto
+        self.buttonUNDO.setFont(QFont("Arial", 16, QFont.Bold))  
 
         self.current_color = Qt.blue
 
-        # Connessioni dei pulsanti per selezionare il colore del tratto
+        # Connect buttons to select stroke color
         self.buttonBLUE.clicked.connect(lambda: self.select_color(Qt.blue))
         self.buttonRED.clicked.connect(lambda: self.select_color(Qt.red))
         self.buttonGREEN.clicked.connect(lambda: self.select_color(Qt.green))
 
         self.buttonUNDO.clicked.connect(self.undo_last_stroke)
 
-        self.undo_enabled = True  # Attributo di classe per memorizzare lo stato del pulsante "UNDO"
+        self.undo_enabled = True  
 
-
-        # Crea un QFrame per contenere i pulsanti
+        # Create a QFrame to contain the buttons
         button_frame = QFrame()
         button_frame.setFrameShape(QFrame.Panel)
         button_frame.setFrameShadow(QFrame.Raised)
         button_frame.setStyleSheet("background-color: rgba(255, 255, 255, 100); border-radius: 10px; border: 2px solid rgba(0, 0, 0, 0.5);")
 
-        # Aggiungi un layout per i pulsanti all'interno del frame
+        # Add a layout for the buttons inside the frame
         button_layout = QHBoxLayout(button_frame)
         button_layout.addWidget(self.buttonBLUE)
         button_layout.addWidget(self.buttonRED)
         button_layout.addWidget(self.buttonGREEN)
         button_layout.addWidget(self.buttonUNDO)
 
-        # Aggiungi il frame al layout principale
+        # Add the frame to the main layout
         layout.addWidget(button_frame, 0, 1, 1, 1, Qt.AlignTop)
 
         # Widget for the main layout
@@ -257,7 +259,7 @@ class MainWindow(QMainWindow):
         # Starting the timer to update the video frame
         self.timer = QTimer(self)
         self.timer.timeout.connect(self.update_frame)
-        self.timer.start(10)  # Update every 10 milliseconds
+        self.timer.start(10)  
 
     
     def select_camera(self):
@@ -274,26 +276,38 @@ class MainWindow(QMainWindow):
                 print(f"Using camera {self.selected_camera_index}")
 
     
+    def show_info(self):
+        info_text = (
+            "This is the AIR WRITING application.\n"
+            "To use the app, follow these instructions:\n"
+            "1. Select a camera to start drawing using hand gestures.\n"
+            "2. If you connect your index and thumb, you can draw.\n"
+            "3. If you connect your index and thumb above any of the options, it is activated automatically.\n"
+            "4. If you close your hand, you delete the draw."
+        )
+        QMessageBox.information(self, "Info", info_text)
+
+
     def clear_canvas(self):
-        self.drawing_canvas.trails = []  # Svuota la lista dei tratti
-        self.drawing_canvas.current_trail = []  # Svuota anche il tratto corrente
-        self.drawing_canvas.update()  # Aggiorna la visualizzazione
+        self.drawing_canvas.trails = []  # Clear the list of trails
+        self.drawing_canvas.current_trail = []  # Also clear the current trail
+        self.drawing_canvas.update()  # Update the display
 
 
     def undo_last_stroke(self):
         if self.undo_enabled:
             if self.drawing_canvas.trails:
-                self.drawing_canvas.trails.pop()  # Rimuove l'ultimo tratto dalla lista dei tratti
-            # Imposta uno stile temporaneo per rendere il pulsante verde meno trasparente
+                self.drawing_canvas.trails.pop()  # Remove the last stroke from the list of trails
+            # Set a temporary style to make the undo button less transparent
             self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 255); height: 80px;")
-            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
-            QTimer.singleShot(150, lambda: self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 160); height: 80px;"))            
-            self.drawing_canvas.update()  # Aggiorna la visualizzazione per rimuovere il tratto cancellato
+            # Start a timer to restore the original style after a short delay
+            QTimer.singleShot(150, lambda: self.buttonUNDO.setStyleSheet("color: white; background-color: rgba(180, 180, 180, 160); height: 80px;"))
+            self.drawing_canvas.update()  # Update the display to remove the deleted stroke
             self.undo_enabled = False
-            # Disabilita temporaneamente il pulsante per 300ms
+            # Temporarily disable the button for 300ms
             QTimer.singleShot(300, self.enable_undo_button)
 
-    
+
     def enable_undo_button(self):
         self.undo_enabled = True
 
@@ -302,40 +316,39 @@ class MainWindow(QMainWindow):
         self.current_color = color
         if color == (Qt.blue):
             self.hands_color = (255, 0, 0)
-            # Imposta uno stile temporaneo per rendere il pulsante blu meno trasparente
+            # Set a temporary style to make the blue button less transparent
             self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 255); height: 80px;")
-            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            # Start a timer to restore the original style after a short delay
             QTimer.singleShot(150, lambda: self.buttonBLUE.setStyleSheet("color: white; background-color: rgba(0, 0, 255, 160); height: 80px;"))
         elif color == (Qt.red):
             self.hands_color = (0, 0, 255)
-            # Imposta uno stile temporaneo per rendere il pulsante rosso meno trasparente
+            # Set a temporary style to make the red button less transparent
             self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 255); height: 80px;")
-            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            # Start a timer to restore the original style after a short delay
             QTimer.singleShot(150, lambda: self.buttonRED.setStyleSheet("color: white; background-color: rgba(255, 0, 0, 160); height: 80px;"))
         elif color == (Qt.green):
             self.hands_color = (0, 255, 0)
-            # Imposta uno stile temporaneo per rendere il pulsante verde meno trasparente
+            # Set a temporary style to make the green button less transparent
             self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 255); height: 80px;")
-            # Avvia un timer per ripristinare lo stile originale dopo un breve ritardo
+            # Start a timer to restore the original style after a short delay
             QTimer.singleShot(150, lambda: self.buttonGREEN.setStyleSheet("color: white; background-color: rgba(0, 255, 0, 160); height: 80px;"))
-    
+
 
     def map_distance_to_thickness(self, distance):
-        # Mappare la distanza della mano alla dimensione dello spessore del tratto
+        # Map the hand distance to the stroke thickness
         
-        # Assicurati che normalized_distance sia compreso tra 0 e 1
+        # Ensure that normalized_distance is between 0 and 1
         normalized_distance = max(0, min(1, distance))
 
-        # Mappa linearmente la distanza normalizzata a uno spessore del tratto
+        # Linearly map the normalized distance to a stroke thickness
         thickness_range = self.max_stroke_thickness - self.min_stroke_thickness
         thickness = self.min_stroke_thickness + normalized_distance * thickness_range
 
         return thickness
 
 
-
     def update_frame(self):
-        stroke_thickness = 2  # Valore predefinito per lo spessore del tratto
+        stroke_thickness = 2  # Default value for stroke thickness
         if self.video_capture is not None:
             # Read a frame from the webcam
             ret, frame = self.video_capture.read()
@@ -376,7 +389,7 @@ class MainWindow(QMainWindow):
                         index_tip = hand_landmark.landmark[8]
                         distance = math.sqrt((thumb_tip.x - index_tip.x) ** 2 + (thumb_tip.y - index_tip.y) ** 2) * frame.shape[1] / 2
 
-                        # Imposta la distanza massima di scrittura in base alla distanza della mano dallo schermo
+                        # Set the maximum writing distance based on the hand distance from the screen
                         max_writing_distance = (hand_distance) * self.distance_costant
                         
                         # Draw detection with blue color if distance is greater than the maximum writing value
@@ -396,21 +409,21 @@ class MainWindow(QMainWindow):
                         cy_canvas = int(cy * canvas_height / frame.shape[0])
 
                         if cy_canvas > 120:
-                            # Aggiungi il punto al canvas di disegno con lo spessore e colore calcolati
+                            # Add the point to the drawing canvas with the calculated thickness and color
                             if distance < max_writing_distance:
                                 if not self.new_line:
                                     self.drawing_canvas.add_point(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
                                 else:
                                     self.drawing_canvas.start_new_line(QPoint(cx_canvas, cy_canvas), stroke_thickness, self.current_color)
-                                    self.new_line = False  # Imposta il flag su False per continuare il tratto esistente
+                                    self.new_line = False  # Set the flag to False to continue the existing stroke
                             else:
                                 if not self.new_line:
                                     self.drawing_canvas.close_line()
-                                self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
+                                self.new_line = True  # Set the flag to True to start a new stroke
                         elif cy_canvas < 100:
                             if not self.new_line:
                                 self.drawing_canvas.close_line()
-                            self.new_line = True  # Imposta il flag su True per iniziare un nuovo tratto
+                            self.new_line = True  # Set the flag to True to start a new stroke
 
                             if distance < max_writing_distance: 
                                 if 20 < cx_canvas < 170:
@@ -423,25 +436,25 @@ class MainWindow(QMainWindow):
                                     self.undo_last_stroke()
 
 
-                        # Aggiorna il puntatore con la posizione media e colore
+                        # Update the pointer with the average position and color
                         self.pointer_position_changed.emit(QPoint(cx_canvas, cy_canvas))
                         self.pointer_color_and_thickness_changed.emit(QColor(self.current_color), int(stroke_thickness))
 
             
-                        # Calcola la distanza tra le nocche e il punto tra la falange intermedia e prossimale di ogni dito
+                        # Compute the distance between the knuckles and the point between the middle and proximal phalanx of each finger
                         knuckle_to_finger_point_distances = []
-                        for i in range(5, 18, 4):  # Punti delle nocche e dei punti tra la falange intermedia e prossimale di ogni dito
+                        for i in range(5, 18, 4):  # Knuckle points and points between middle and proximal phalanx of each finger
                             knuckle = hand_landmark.landmark[i]
                             middle_to_proximal = hand_landmark.landmark[i+2]
                             distance = math.sqrt((knuckle.x - middle_to_proximal.x) ** 2 + (knuckle.y - middle_to_proximal.y) ** 2) * frame.shape[1] / 2
                             knuckle_to_finger_point_distances.append(distance)
                         
-                        # Calcola la distanza media tra le distanze delle nocche e il punto tra la falange intermedia e prossimale di ogni dito
+                        # Compute the average distance between the knuckle distances and the point between the middle and proximal phalanx of each finger
                         avg_distance = sum(knuckle_to_finger_point_distances) / len(knuckle_to_finger_point_distances)
                         
-                        # Se la distanza media è inferiore a una certa soglia, considera la mano chiusa a pugno
+                        # If the average distance is below a certain threshold, consider the hand as a closed fist
                         if avg_distance < self.punch_treshold:
-                            self.clear_canvas()  # Chiama la funzione clear_canvas()
+                            self.clear_canvas()  # Call the clear_canvas() function
 
                 # Convert the frame to QImage format
                 rgb_image = cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
@@ -461,11 +474,14 @@ class MainWindow(QMainWindow):
                 self.video_label.setText("Error reading frame from webcam")
 
 
-
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     
     window = MainWindow()
     window.show()
     
+    # Call show_info after showing the main window
+    window.show_info()
+    
     sys.exit(app.exec_())
+    
