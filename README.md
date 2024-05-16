@@ -6,14 +6,14 @@ The AIR WRITING application allows users to draw on the screen using hand gestur
 ## Features
 - **Drawing with Hand Gestures:** Users can draw on the screen by moving their hands in the air.
 - **Multiple Color Selection:** Users can choose from different colors (blue, red, green) for drawing strokes.
-- **Undo Functionality:** Users can undo the last drawn stroke by making a specific hand gesture.
+- **Undo Functionality:** Users can undo the last drawn.
 - **Clear Canvas:** Users can clear the entire drawing canvas by making a specific hand gesture.
 
 ## Usage
 1. **Select Camera:** Start the application and select a camera from the available options to begin drawing.
 2. **Draw with Hand Gestures:** Move your hand in the air to draw strokes on the screen. Connect your index and thumb to start drawing.
 3. **Color Selection:** Place your index and thumb above the color options to change the drawing color (blue, red, green).
-4. **Undo:** Make a fist gesture to undo the last drawn stroke.
+4. **Undo:** Place your index and thumb above the Undo button to remove the last strokes.
 5. **Clear Canvas:** Make a fist gesture and close your hand completely to clear the entire drawing canvas.
 
 ## Requirements
