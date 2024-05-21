@@ -475,6 +475,15 @@ class MainWindow(QMainWindow):
 
 
 if __name__ == '__main__':
+
+    # Inform the user and obtain consent
+    print("Welcome to the air drawing app. This app uses the camera to detect motion and allow you to draw on the screen.")
+    consent = input("Do you agree to allow access to the camera? (y/n): ")
+
+    if consent.lower() != 'y':
+        print("Permission denied. The app cannot access the camera.")
+        exit()
+
     app = QApplication(sys.argv)
     
     window = MainWindow()
